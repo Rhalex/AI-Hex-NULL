@@ -1,0 +1,176 @@
+
+click(I) | nClick(I) :- hex(I, L1, L2, L3, L4, L5, L6, "white").
+
+:- #count{I: click(I)}!=1.
+
+%PRENDI LA CELLA CENTRALE, SE DISPONIBILE
+:~ nClick(I), hex(I,_,_,_,_,_,_,"white"), I=61. [I@4, I]
+
+%PRENDI GLI ANGOLI, SE DISPONIBILI
+:~ click(I), hex(A,_,_,_,_,_,_,"white"), angolo(A), I!=A. [1@1, I,A]
+
+%CREA TUTTE LE CONNESSIONI TRA LE VARIE CELLE.
+connected(A,B) :- hex(A,B,_,_,_,_,_,_), hex(B,_,_,_,_,_,_,_), A!=B.
+connected(A,B) :- hex(A,_,B,_,_,_,_,_), hex(B,_,_,_,_,_,_,_), A!=B.
+connected(A,B) :- hex(A,_,_,B,_,_,_,_), hex(B,_,_,_,_,_,_,_), A!=B.
+connected(A,B) :- hex(A,_,_,_,B,_,_,_), hex(B,_,_,_,_,_,_,_), A!=B.
+connected(A,B) :- hex(A,_,_,_,_,B,_,_), hex(B,_,_,_,_,_,_,_), A!=B.
+connected(A,B) :- hex(A,_,_,_,_,_,B,_), hex(B,_,_,_,_,_,_,_), A!=B.
+
+%CREA IL PERCORSO TRA DUE CELLE DISTANTI UN ESAGONO
+percorsoUno(A,C,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(C,_,_,_,_,_,_,"white"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), A!=B, A!=C, B!=C, A<B.
+
+%DEFINISCE IL bridge. DUE CELLE NON CONNESSE CON IN COMUNE DUE ESAGONI
+ponte(A,B) :- percorsoUno(A,C1,B), percorsoUno(A,C2,B), A!=B, C1!=C2, A<B.
+
+%DEFINISCE UN PERCORSO TRA DUE CELLE NON CONNESSE SEPARATE DA UNO O DUE ESAGONI
+percorsoBlue(A,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(C,_,_,_,_,_,_,"blue"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), A!=B, A!=C, B!=C, A<B.
+percorsoBlue(A,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(C,_,_,_,_,_,_,"blue"), hex(D,_,_,_,_,_,_,"blue"), connected(A,C), connected(C,D), connected(D,B), A!=B, A!=C, A!=D, B!=C, B!=D, C!=D, A<B.
+
+giaDistanzaUno(A,B) :- distanzaUno(A,C,B).
+
+%DEFINISCE IL PERCORSO TRA DUE CELLE (NON CONNESSE) A DISTANZA UNO
+distanzaUno(A,C,B) :- percorsoUno(A,C,B), not ponte(A,B), not percorsoBlue(A,B), A<B.
+
+%DEFINISCE IL PERCORSO TRA DUE CELLE (NON CONNESSE) A DISTANZA DUE. CONSIDERA LE CONNESSIONI NON PRESENTI IN distanzaUno
+distanzaDue(A,C,D,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), connected(A,C), connected(C,D), connected(D,B), not connected(A,B), not connected(B,A), not ponte(A,B), not percorsoBlue(A,B), not giaDistanzaUno(A,B), A!=B, A!=C, A!=D, B!=C, B!=D, C!=D, A<B.
+
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), distanzaUno(A,D,B), click(I), I!=D. [6@7,I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(D,_,_,_,_,_,_,"white"), distanzaDue(A,C,D,B), click(I), I!=C. [5@5,I,A,B,D]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), hex(C,_,_,_,_,_,_,"white"), distanzaDue(A,C,D,B), click(I), I!=D. [5@5,I,A,B,C]
+
+%DEFINISCE LE CELLE CHE SONO GIÀ CONNESSE AD UN BORDO BLU.
+giaConnessoAlBordo(A) :- hex(A,_,_,_,_,_,_,"blue"), connected(A,B), hex(B,_,_,_,_,_,_,"blue"), bordoUp(B).
+giaConnessoAlBordo(A) :- hex(A,_,_,_,_,_,_,"blue"), connected(A,B), hex(B,_,_,_,_,_,_,"blue"), bordoDown(B).
+
+%DEFINISCE LE CELLE CHE SI TROVANO A DISTANZA ZERO DAI BORDI BLU. (OVVERO È CONNESSO AD UNA CELLA DEL BORDO)
+bluDistanzaZeroBordo(A,B) :- hex(A,_,_,_,_,_,_,"blue"),  not bordoUp(A), not bordoDown(A), hex(B,_,_,_,_,_,_,"white"), bordoUp(B), connected(A,B), not giaConnessoAlBordo(A).
+bluDistanzaZeroBordo(A,B) :- hex(A,_,_,_,_,_,_,"blue"),  not bordoUp(A), not bordoDown(A), hex(B,_,_,_,_,_,_,"white"), bordoDown(B), connected(A,B), not giaConnessoAlBordo(A).
+
+giaVicinoBordo(A) :- bluDistanzaZeroBordo(A,B).
+
+%DEFINISCE LE CELLE CHE SI TROVANO A DISTANZA UNO DAI BORDI BLU.
+bluDistanzaUnoBordo(A,B) :- hex(A,_,_,_,_,_,_,"blue"),  not bordoUp(A), not bordoDown(A), hex(B,_,_,_,_,_,_,"white"), bordoUp(B), hex(C,_,_,_,_,_,_,"white"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), not giaConnessoAlBordo(A), not giaVicinoBordo(A).
+bluDistanzaUnoBordo(A,B) :- hex(A,_,_,_,_,_,_,"blue"),  not bordoUp(A), not bordoDown(A), hex(B,_,_,_,_,_,_,"white"), bordoDown(B), hex(C,_,_,_,_,_,_,"white"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), not giaConnessoAlBordo(A), not giaVicinoBordo(A).
+
+%PAGO SE NON SPEZZO IL PERCORSO TRA CELLE VICINE AL BORDO A DISTANZA ZERO.
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"white"), bluDistanzaZeroBordo(A,B), click(I), I!=B. [8@7, I,A,B] %(Peso Prec : 10)
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"white"), bluDistanzaZeroBordo(A,B), click(I), I!=B. [8@7, I,A,B]
+
+%PAGO SE NON SPEZZO IL PERCORSO TRA CELLE VICINE AL BORDO A DISTANZA UNO.
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"white"), bluDistanzaUnoBordo(A,B), click(I), I!=B. [3@7, I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"white"), bluDistanzaUnoBordo(A,B), click(I), I!=B. [3@7, I,A,B]
+
+:~ hex(A,_,_,_,_,_,_,"blue"), bordoUp(A), hex(B,_,_,_,_,_,_,"blue"), distanzaUno(A,D,B), click(I), I!=D. [10@7,I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), bordoDown(B), distanzaUno(A,D,B), click(I), I!=D. [10@7,I,A,B]
+
+%PAGO SE NON SPEZZO IL PERCORSO TRA CELLE VICINE, DOVE UNA È UN BORDO, SEPARATE DA UNA SOLA CELLA.
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), bordoUp(A), distanzaUno(A,D,B), click(I), I!=D. [1@6,I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), bordoUp(B), distanzaUno(A,D,B), click(I), I!=D. [1@6,I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), bordoDown(A), distanzaUno(A,D,B), click(I), I!=D. [1@6,I,A,B]
+:~ hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), bordoDown(B), distanzaUno(A,D,B), click(I), I!=D. [1@6,I,A,B]
+
+%PAGO SE ESISTE UN PONTE TRA DUE CELLE, DOVE UNA È UN BORDO, E NON CERCO DI SPEZZARE IL LEGAME.
+:~ ponte(A,B), bordoUp(A), percorsoUno(A,C,B), percorsoUno(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=C. [3@6, I,C,D]
+:~ ponte(A,B), bordoUp(A), percorsoUno(A,C,B), percorsoUno(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=D. [3@6, I,C,D]
+:~ ponte(A,B), bordoDown(B), percorsoUno(A,C,B), percorsoUno(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=C. [3@6, I,C,D]
+:~ ponte(A,B), bordoDown(B), percorsoUno(A,C,B), percorsoUno(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=D. [3@6, I,C,D]
+
+%CREA IL PERCORSO TRA DUE CELLE, DI CUI UNA BLU, DISTANTI UN ESAGONO
+percorsoUnoBianco(A,C,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"white"), hex(C,_,_,_,_,_,_,"white"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), A!=B, A!=C, B!=C.
+
+ponteBianco(A,B) :- percorsoUnoBianco(A,C1,B), percorsoUnoBianco(A,C2,B), A!=B, C1!=C2.
+
+:~ ponteBianco(A,B), bordoUp(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=B. [3@7, I,C,D]
+:~ ponteBianco(A,B), bordoUp(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=C. [2@7, I,C,D]
+:~ ponteBianco(A,B), bordoUp(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=D. [2@7, I,C,D]
+:~ ponteBianco(A,B), bordoDown(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=B. [3@7, I,C,D]
+:~ ponteBianco(A,B), bordoDown(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=C. [2@7, I,C,D]
+:~ ponteBianco(A,B), bordoDown(B), percorsoUnoBianco(A,C,B), percorsoUnoBianco(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=D. [2@7, I,C,D]
+
+%CALCOLO DEL PERCORSO VINCENTE PER IL GIOCATORE BLUE
+startBlue(S) :- hex(S,_,_,_,_,_,_,"blue"), bordoUp(S).
+endBlue(E) :- hex(E,_,_,_,_,_,_,"blue"), bordoDown(E).
+roadBlue(A,B) :- hex(A,_,_,_,_,_,_,"blue"), hex(B,_,_,_,_,_,_,"blue"), connected(A,B).
+
+percorsoVincenteBlue(S,A) :- startBlue(S), roadBlue(S,A).
+percorsoVincenteBlue(A,B) :- percorsoVincenteBlue(X,A), roadBlue(A,B).
+percorsoVincenteBlue(B,E) :- percorsoVincenteBlue(Y,B), roadBlue(B,E), endBlue(E).
+
+blueWon(S,E) :- percorsoVincenteBlue(S,_), percorsoVincenteBlue(_,E), bordoUp(S), bordoDown(E).
+
+%CALCOLO DEL PERCORSO VINCENTE PER IL GIOCATORE RED
+startRed(S) :- hex(S,_,_,_,_,_,_,"red"), bordoSx(S).
+endRed(D) :- hex(D,_,_,_,_,_,_,"red"), bordoDx(D).
+roadRed(A,B) :- hex(A,_,_,_,_,_,_,"red"), hex(B,_,_,_,_,_,_,"red"), connected(A,B).
+
+percorsoVincenteRed(S,A) :- startRed(S), roadRed(S,A).
+percorsoVincenteRed(A,B) :- percorsoVincenteRed(X,A), roadRed(A,B).
+percorsoVincenteRed(B,D) :- percorsoVincenteRed(Y,B), roadRed(B,D), endRed(D).
+
+redWon(S,D) :- percorsoVincenteRed(S,_), percorsoVincenteRed(_,D), bordoSx(S), bordoDx(D).
+
+%ALCUNE REGOLE PER INCENTIVARE L'INIZIATIVA DEL RED
+percorsoUnoRosso(A,C,B) :- hex(A,_,_,_,_,_,_,"red"), hex(B,_,_,_,_,_,_,"red"), hex(C,_,_,_,_,_,_,"white"), connected(A,C), connected(C,B), not connected(A,B), not connected(B,A), A!=B, A!=C, B!=C, A<B.
+
+ponteRosso(A,B) :- percorsoUnoRosso(A,C1,B), percorsoUnoRosso(A,C2,B), A!=B, C1!=C2, A<B.
+
+:~ ponteRosso(A,B), percorsoUnoRosso(A,C,B), percorsoUnoRosso(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=C. [5@3, I,C,D]
+:~ ponteRosso(A,B), percorsoUnoRosso(A,C,B), percorsoUnoRosso(A,D,B), hex(C,_,_,_,_,_,_,"white"), hex(D,_,_,_,_,_,_,"white"), click(I), I!=D. [5@3, I,C,D]
+
+%FATTI
+angolo(1).
+angolo(11).
+angolo(111).
+angolo(121).
+
+numHex(121).
+
+%MAPPATURA BORDI
+bordoUp(1).
+bordoUp(2).
+bordoUp(3).
+bordoUp(4).
+bordoUp(5).
+bordoUp(6).
+bordoUp(7).
+bordoUp(8).
+bordoUp(9).
+bordoUp(10).
+bordoUp(11).
+
+bordoDown(111).
+bordoDown(112).
+bordoDown(113).
+bordoDown(114).
+bordoDown(115).
+bordoDown(116).
+bordoDown(117).
+bordoDown(118).
+bordoDown(119).
+bordoDown(120).
+bordoDown(121).
+
+bordoSx(1).
+bordoSx(12).
+bordoSx(23).
+bordoSx(34).
+bordoSx(45).
+bordoSx(56).
+bordoSx(67).
+bordoSx(78).
+bordoSx(89).
+bordoSx(90).
+bordoSx(111).
+
+bordoDx(11).
+bordoDx(22).
+bordoDx(33).
+bordoDx(44).
+bordoDx(55).
+bordoDx(66).
+bordoDx(77).
+bordoDx(88).
+bordoDx(99).
+bordoDx(110).
+bordoDx(121).
